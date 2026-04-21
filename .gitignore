@@ -1,6 +1,6 @@
-# Academic release: track only the training entrypoint, argument/data/model wiring,
-# and the qignn package. All other top-level files (analysis, baselines, shell runners,
-# etc.) stay untracked—keep them locally as needed.
+# Academic release: only training entrypoint, model factory, and qignn/.
+
+# Whitelist: single-segment names at repo root (non-dot)
 /*
 !/.gitignore
 !/README.md
@@ -8,10 +8,21 @@
 !/train.py
 !/model_factory.py
 !/qignn
+
+# Root dotfiles: experiment queues, locks, workers, ad-hoc dirs. The pattern
+# `/*` above does *not* match names starting with `.`, so these must be listed
+# (see gitignore(5); local orchestration should never be published).
+/.*
+!/.gitignore
+/.task_locks/
+
+# Bytecode and packaging
 **/__pycache__/
 *.py[cod]
 *.pyo
 .eggs/
 *.egg-info/
+
+# Local data and run outputs
 /data/
 /results/

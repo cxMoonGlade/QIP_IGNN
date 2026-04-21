@@ -1,0 +1,11 @@
+# Core dependencies for the training code (see README). Pin versions in your own
+# environment; use requirements_lock.txt only as a local full snapshot if you keep one.
+torch>=2.0
+torch-geometric
+numpy
+scikit-learn
+tqdm
+networkx
+matplotlib
+ogb
+torchdeq
