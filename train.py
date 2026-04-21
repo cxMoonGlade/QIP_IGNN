@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Topology-Aware QIGNN Training Script
+Training entry point for *Quantum Injection Pathways for Implicit Graph Neural Networks*.
 
-Usage:
-    python train.py --dataset NCI1 --hidden 64
-    python train.py --dataset NCI1 --use_gate
-    python train.py --dataset NCI1 --topo_encoding --topo_ising --use_gate
+Uses :func:`model_factory.setup_args`, :func:`model_factory.build_dataset`, and
+:func:`model_factory.build_model` so the CLI and model match the paper’s reported
+configurations.  See the repository README for example commands (IN/SD/BD and
+classical implicit baseline on TU datasets).
 """
 
 import os

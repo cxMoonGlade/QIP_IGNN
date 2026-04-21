@@ -1,9 +1,9 @@
 """
-Quantum Neural Network Layers.
-
-Wraps the quantum circuit ansatz into nn.Module layers:
-- TorchQuantumLayer: drop-in quantum feature layer
-- TopoAwareQuantumLayer: topology-conditioned quantum layer (PCB-GNN inspired)
+Encode--unitary--measure maps from the paper (``Quantum Module Definition``; Deep XYZ
+in the appendix).  ``TorchQuantumLayer`` is the plain :math:`g_{\\xi,\\mathrm{node}}`
+residual; ``TopoAwareQuantumLayer`` modulates the circuit with per-node and graph
+cycle descriptors :math:`\\tau` (independent :math:`q_\\zeta` for the IN pathway, or
+shared structure for the encoder PQC in full ``use_quantum`` mode).
 """
 
 import torch
@@ -20,10 +20,10 @@ from .ansatz import (
 
 class TorchQuantumLayer(nn.Module):
     """
-    Drop-in quantum feature layer.
-
-    Projects hidden features to qubit space, executes the Deep XYZ circuit,
-    and projects back to hidden space. Matches the PennyLane QuantumLayer API.
+    Node map *g* in the paper: :math:`W_{\\mathrm{out}}(m_v)` after angle encoding
+    and a trainable *U(ξ)* (``TorchQuantumCircuit`` in ``ansatz``).  Used inside
+    :class:`qignn.model.BatchedImplicitCore` as the in-loop SD/BD residual when
+    ``quantum_inside`` is set and ``qi_topo`` is *False* (plain circuit).
     """
 
     def __init__(
@@ -77,12 +77,12 @@ class TorchQuantumLayer(nn.Module):
 
 class TopoAwareQuantumLayer(nn.Module):
     """
-    Topology-Aware Quantum Layer (PCB-GNN inspired).
-
-    Combines:
-    1. Cycle basis features -> Ising interaction modulation
-    2. Node structural features -> Data encoding modulation
-    3. Competitive gating between topology-conditioned and fixed parameters
+    Same *g* / *q_ζ* pipeline as :class:`TorchQuantumLayer` with cycle-based
+    **τ** (node and graph) modulating the Deep XYZ block (Ising/encoding; optional
+    competitive gating).  Implements the encode--unitary--measure *q_ζ*(*h*,*τ*) used
+    for **independent** injection (per-node, fixed before the implicit solve) when
+    attached as ``TopoAwareQIGNN.quantum_node``, and the graph-level PQC in the
+    ``use_quantum`` branch when the paper uses topology-conditioned circuits.
     """
 
     def __init__(

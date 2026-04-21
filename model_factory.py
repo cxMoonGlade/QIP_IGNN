@@ -1,21 +1,12 @@
 #!/usr/bin/env python3
 """
-model_factory.py - Factored argparse, dataset, and model construction.
+``model_factory`` — command-line, datasets, and :class:`qignn.model.TopoAwareQIGNN` construction.
 
-Extracted from ``train.py::main`` so that analysis scripts (barren plateau,
-Fisher, PCA, solver-trajectory) can reuse the exact same setup logic without
-importing the training loop. Behaviour is intended to match the pre-training
-setup phase of ``train.py`` bit-for-bit; ``train.py`` now delegates to these
-helpers.
-
-Public API:
-    setup_args() -> argparse.ArgumentParser
-    build_dataset(args, device, *, verbose=True) -> dict
-    build_model(args, num_features, num_classes, device, *, verbose=True)
-        -> (model, gate_stats)
-
-All extra CLI flags introduced for downstream analysis scripts are added here
-(not in ``train.py``) so that analysis scripts can reuse the parser.
+This module matches the pre-training setup used by ``train.py`` (same defaults and
+flags).  Flags related to the paper’s *quantum injection pathways* (independent
+``q_ind_node``, in-loop ``quantum_inside``, placement ``qi_direct`` for
+state- vs. backbone-dependent residuals, ``--qi_alpha`` (residual scale *α* in the paper), etc.) are
+defined in :func:`setup_args` and passed through :func:`build_model`.
 """
 
 from __future__ import annotations
@@ -212,11 +203,11 @@ def compute_gate_depth(max_neighbors, n_qubits_per_neighbor, conv_layers):
 # =============================================================================
 
 def setup_args() -> argparse.ArgumentParser:
-    """Build the full CLI parser used by train.py and analysis scripts.
+    """Full CLI for ``train.py`` (and any tool that reuses the same model constructor).
 
-    Returns an un-parsed parser so callers can add their own arguments before
-    calling ``parse_args()``. Behaviour / defaults are identical to the original
-    ``train.py`` parser.
+    Returns an *un-parsed* parser. The ``--quantum_inside`` / ``--qi_direct`` /
+    ``--q_ind_node`` group selects the IN / SD / BD configurations described in the
+    paper; see README and :class:`qignn.model.TopoAwareQIGNN`.
     """
     parser = argparse.ArgumentParser(description='Topology-Aware QIGNN')
 
@@ -278,20 +269,19 @@ def setup_args() -> argparse.ArgumentParser:
     parser.add_argument('--topo_drop_ising', type=float, default=0.0)
     parser.add_argument('--topo_drop_gate', type=float, default=0.0)
 
-    # Implicit core
+    # Implicit core (Z* = Phi(Z*); see paper: shared backbone and fixed-point solve)
     parser.add_argument('--implicit_global', action='store_true')
     parser.add_argument('--implicit_self_loops', action='store_true')
     parser.add_argument('--no_normalize_adj', action='store_true')
     parser.add_argument('--kappa', type=float, default=0.999)
     parser.add_argument('--solver', type=str, default='torchdeq',
                         choices=['simple', 'anderson', 'torchdeq', 'unroll'],
-                        help="'unroll' runs a fixed max_iter Picard loop under full "
-                             "autograd (no IFT surrogate). Intended for barren-plateau "
-                             "diagnostics; memory scales with max_iter.")
+                        help="'unroll' = Picard with full unrolling (BPTT through solver "
+                             "steps; high memory). 'torchdeq' = Anderson + IFT (training default).")
     parser.add_argument('--max_iter', type=int, default=50)
     parser.add_argument('--tol', type=float, default=1e-6)
     parser.add_argument('--quantum_inside', action='store_true',
-                        help='QDEQ-style: quantum circuit inside each implicit iteration')
+                        help='In-loop residual g_xi: SD/BD pathways (alpha * g on Z or h(Z))')
     parser.add_argument('--qi_n_qubits', type=int, default=4,
                         help='Qubits for quantum-inside circuit (default: 4)')
     parser.add_argument('--qi_circuit_reps', type=int, default=1,
@@ -299,7 +289,7 @@ def setup_args() -> argparse.ArgumentParser:
     parser.add_argument('--qi_alpha', type=float, default=0.1,
                         help='Residual scale for quantum-inside (default: 0.1)')
     parser.add_argument('--qi_direct', action='store_true',
-                        help='Direct-residual: quantum acts on Z instead of h(Z)')
+                        help='State-dependent: g_xi(Z). If off (with --quantum_inside): g_xi(h_theta(Z)) (BD).')
     parser.add_argument('--qi_classical', action='store_true',
                         help='Classical residual: replace PQC with parameter-matched MLP')
     parser.add_argument('--qi_topo', action='store_true',
@@ -307,7 +297,7 @@ def setup_args() -> argparse.ArgumentParser:
     parser.add_argument('--perm_invariant', action='store_true',
                         help='Permutation-invariant quantum params (shared across qubits/edges)')
     parser.add_argument('--q_ind_node', action='store_true',
-                        help='Independent per-node quantum injection: Q_xi(A,H) static signal into implicit core')
+                        help='Independent injection Q_IN(H, tau): static per-node signal into tanh (IN pathway).')
     parser.add_argument('--ablation_lg', action='store_true',
                         help='Deprecated: q_ln is now always Identity (no-op, kept for script compat)')
     parser.add_argument('--ignn_injection', action='store_true',

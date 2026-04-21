@@ -1,17 +1,17 @@
-# Downloaded datasets (large, regenerated automatically)
-data/
-
-# Python cache
-__pycache__/
-*.pyc
+# Academic release: track only the training entrypoint, argument/data/model wiring,
+# and the qignn package. All other top-level files (analysis, baselines, shell runners,
+# etc.) stay untracked—keep them locally as needed.
+/*
+!/.gitignore
+!/README.md
+!/requirements.txt
+!/train.py
+!/model_factory.py
+!/qignn
+**/__pycache__/
+*.py[cod]
 *.pyo
-*.egg-info/
 .eggs/
-
-# IDE / OS
-.vscode/
-.idea/
-*.swp
-.DS_Store
-
-results/
+*.egg-info/
+/data/
+/results/

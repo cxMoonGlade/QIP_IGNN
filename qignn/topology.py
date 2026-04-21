@@ -1,14 +1,10 @@
-"""
-Topology Feature Extraction for Graph-Aware Quantum Circuits.
-
-Inspired by PCB-GNNs, extracts topological features from graphs
-to condition quantum circuit parameters.
-
-Key Features:
-1. Cycle basis computation (O(n^3) preprocessing)
-2. Node-level cycle features: cycles of each length incident to each node
-3. Graph-level cycle statistics
-4. Structural descriptors (degree, clustering, centrality)
+r"""
+Graph-side topology descriptors :math:`\tau(A)` for the paper (independent
+injection :math:`Q_{\mathrm{IN}}(H,\tau(A))` and, when used, modulations on the
+encode--unitary--measure map).  Builds a (minimum) cycle basis and per-node / graph
+cycle-count features consumed by :class:`qignn.quantum_torch.TopoAwareQuantumLayer`.
+The optional PCB-GNN-style gating in that layer follows the *PCB-GNN* reference
+cited in the paper’s related work.
 """
 
 import torch

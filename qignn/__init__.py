@@ -1,12 +1,9 @@
 """
-QIGNN - Quantum-Conditioned Implicit Graph Neural Network
+*Quantum injection pathways* for implicit GNNs (see package :mod:`qignn.model`).
 
-Modules:
-- ansatz: Quantum gates, state operations, Deep XYZ circuit, qubit topologies
-- quantum_torch: TorchQuantumLayer, TopoAwareQuantumLayer
-- lqa: Local Quantum Aggregator (entanglement-based GIN aggregation)
-- topology: Cycle basis extraction, topological features
-- model: GINEncoder, BatchedImplicitCore, TopoAwareQIGNN, pooling, decoder
+Subpackages: ``ansatz`` (Deep XYZ circuit), ``quantum_torch`` (encode--unitary--measure
+maps), ``topology`` (cycle features :math:`\\tau`), ``lqa`` (optional LQA encoder),
+and ``model`` (encoders, :class:`BatchedImplicitCore`, :class:`TopoAwareQIGNN`).
 """
 
 from .topology import (

@@ -1,12 +1,24 @@
-"""
-QIGNN Model Components.
+r"""
+Model components for *Quantum Injection Pathways for Implicit Graph Neural Networks*.
 
-Contains all neural network modules used by the training script:
-- GIN_MLP / GINEncoder / SimpleEncoder: graph encoders
-- BatchedGraphPooling: PyG-compatible graph-level readout
-- BatchedImplicitCore: IGNN-style batched implicit equilibrium layer
-- GNNDecoder: post-implicit feature refinement
-- TopoAwareQIGNN: full model assembling all components
+The paper fixes a **shared classical backbone** (encoder :math:`H=\mathrm{Enc}(A,X_0)`,
+propagation :math:`\tilde A`, and map :math:`h_\theta` with :math:`\tanh` nonlinearity)
+and varies **only** how a quantum (encode--unitary--measure) signal couples to
+:math:`\Phi_\theta` in :math:`Z^\star = \Phi_\theta(Z^\star;\tilde A, H)`.
+
+- **IN (independent)**: static :math:`Q_{\mathrm{IN}}(H,\tau(A))` (``q_ind_node``,
+  :class:`TopoAwareQIGNN` → ``quantum_node``) is computed once and enters the
+  pre-activation with :math:`H\Omega^\top` (same role as the IGNN input-injection term).
+- **SD (state-dependent)**: in-loop residual :math:`\alpha\,g_\xi(\cdot)` with
+  :math:`g_\xi(Z)` (``--quantum_inside --qi_direct``).
+- **BD (backbone-dependent)**: :math:`\alpha\,g_\xi(h_\theta(Z))` (``--quantum_inside``,
+  no ``--qi_direct``), where the code passes the *post*-\ :math:`\tanh` node state
+  into the same residual module as the backbone output at the current iterate.
+
+The implicit layer :class:`BatchedImplicitCore` implements the fixed-point solve
+(``torchdeq``/Anderson in training) over batched dense graphs. Normalized
+:math:`\tilde A` uses symmetric normalization with self-loops, as in the paper
+(Kipf--Welling form; :func:`pyg_to_batched_dense`).
 """
 
 import torch
@@ -257,9 +269,9 @@ def pyg_to_batched_dense(data, hidden_features: torch.Tensor,
     """
     Convert PyG batched graph to padded dense tensors.
 
-    normalize_adj: If True, apply symmetric normalization to the graph adjacency
-        used by the implicit core: Â = D^{-1/2} A_tilde D^{-1/2}, where A_tilde
-        is the symmetrized adjacency with diagonal set to 1.
+    normalize_adj: If True, build the symmetrically normalized adjacency with
+        self-loops (Kipf--Welling / paper: *Ã* = *D̂*^{-1/2} (*A*+*I*) *D̂*^{-1/2})
+        for the implicit map's propagation matrix.
 
     Returns:
         padded_h: [batch, max_nodes, hidden]
@@ -326,13 +338,22 @@ def pyg_to_batched_dense(data, hidden_features: torch.Tensor,
 # =============================================================================
 
 class BatchedImplicitCore(nn.Module):
-    """
-    Batched IGNN-style implicit layer with CONE contraction guarantee.
+    r"""
+    Batched implicit equilibrium map :math:`Z \mapsto \Phi_\theta(Z;\tilde A, H)`.
 
-    When quantum_inside=True (QDEQ-style), a quantum circuit is applied inside
-    each fixed-point iteration as a residual nonlinear transformation:
-        z_new = IGNN_step(z) + alpha * QC(IGNN_step(z))
-    This makes the quantum circuit part of the equilibrium dynamics.
+    The classical piece matches the paper's backbone
+    :math:`h_\theta(Z)=\sigma(\tilde A Z W^\top + H\Omega^\top + \mathbf 1 b^\top)`
+    with :math:`\sigma=\tanh`.  The third argument to :meth:`forward` (``q_features``)
+    is the **broadcast row bias** in that pre-activation: for **IN**, this is
+    :math:`Q_{\mathrm{IN}}(H,\tau(A))` (constant over solver iterates). For SD/BD,
+    with ``quantum_inside=True``, the map adds
+    :math:`\alpha\,g_\xi(\cdot)` **after** the :math:`\tanh` (see :meth:`_phi_step`):
+    state-dependent if ``qi_direct`` uses current :math:`Z`, backbone-dependent
+    if it uses the :math:`\tanh` output.
+
+    :math:`W` is projected to control :math:`\lVert W\rVert_2` relative to
+    :math:`\lVert\tilde A\rVert_2` (see :meth:`_get_kappa_target` / :meth:`_project_spectral_norm`)
+    in the spirit of the IGNN contraction template in the paper.
     """
 
     def __init__(
@@ -497,6 +518,8 @@ class BatchedImplicitCore(nn.Module):
         Z_new = Z_new * mask.unsqueeze(-1).float()
 
         if self.quantum_inside and self.qc_inside is not None:
+            # Paper: SD uses g_ξ(Z); BD uses g_ξ(h_θ(Z)). After the tanh above,
+            # Z_new is the backbone output at this iterate; qi_direct picks Z vs Z_new.
             bs, max_n, h = Z_new.shape
             residual_input = Z if self.qi_direct else Z_new
             z_flat = residual_input.reshape(bs * max_n, h)
@@ -580,6 +603,14 @@ class BatchedImplicitCore(nn.Module):
         topo_node_features: torch.Tensor = None,
         topo_graph_features: torch.Tensor = None,
     ) -> Tuple[torch.Tensor, dict]:
+        """Return fixed point ``z_out`` and solver diagnostics.
+
+        ``injection`` is the encoder output *H* (per-node, padded). ``adj`` is the
+        normalized propagation matrix *Ã*. ``q_features`` is the additive *Q* term in
+        the tanh pre-activation (for independent injection, *Q* is fixed for the
+        whole solve). State- and backbone-dependent *g_ξ* runs inside :meth:`_phi_step` when
+        ``quantum_inside`` is enabled.
+        """
         batch_size, max_nodes, hidden = injection.shape
         device = injection.device
 
@@ -933,16 +964,20 @@ class GNNDecoder(nn.Module):
 # =============================================================================
 
 class TopoAwareQIGNN(nn.Module):
-    """
-    Topology-Aware Quantum Implicit Graph Neural Network.
+    r"""
+    End-to-end model for the paper: encoder :math:`H`, optional encoder-side PQC,
+    then (optional) :class:`BatchedImplicitCore` for :math:`Z^\star`, readout, classifier.
 
-    Architecture:
-    1. GIN / LQA / Simple encoder
-    2. Topology feature extraction (cycle basis)
-    3. [Optional] Topology-aware quantum layer
-    4. [Optional] Implicit Core (DEQ fixed-point equilibrium)
-    5. [Optional] GNN Decoder
-    6. Classifier head
+    **Pathways (paper, *The Three Injection Pathways*):**
+    * ``q_ind_node``: independent injection :math:`Q_{\mathrm{IN}}` from per-node
+      encoder features and topology (``quantum_node``) → passed as static ``q_features``
+      into the implicit map (iterate-independent conditioning).
+    * ``quantum_inside`` + ``qi_direct`` / not: in-loop residual
+      :math:`\alpha g_\xi` on :math:`Z` vs. on backbone output, shared ``qc_inside`` module.
+
+    The ``--no_quantum`` training flag turns off the *separate* encoder graph-level
+    PQC; reported IN/SD/BD runs use it so only the pathway above carries the quantum
+    contribution described in the paper.
     """
 
     def __init__(
@@ -1221,8 +1256,9 @@ class TopoAwareQIGNN(nn.Module):
 
             q_global_for_dynamic = None
             if self.q_ind_node and self.quantum_node is not None:
-                # Φ_ind-node(Z) = h_θ(Z) + Q_ξ(A, H)
-                # Per-node static quantum signal from encoder output + topo
+                # IN (paper): Q_IN(H, τ(A)) row-wise, fixed before the fixed-point solve,
+                # added inside σ with H Ω^T (not an outer h_θ + Q sum).
+                # quantum_node: encode--unitary--measure from (h_v, node/topology descriptors)
                 if topo_features is not None:
                     ind_node_topo = topo_features['combined_node_features'].to(device)
                     ind_graph_topo = topo_features['graph_cycle_features'].to(device)

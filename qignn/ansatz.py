@@ -1,13 +1,11 @@
 """
-Quantum Circuit Ansatz for QIGNN.
-
-Contains the full Deep XYZ quantum circuit:
-- Gate matrices (RX, RY, RZ, CNOT, Ising ZZ/XX/YY)
-- State vector operations (single-qubit, two-qubit gate application)
-- TorchQuantumCircuit: the Deep XYZ ansatz matching PennyLane structure
-- Qubit connectivity topologies (linear, circular, all-to-all)
-
-All operations are pure PyTorch for native GPU execution and autograd support.
+Deep **XYZ** parametrized quantum circuit (paper appendix *Deep XYZ Ansatz Used in
+Experiments*): alternating data-dependent encodings (angle / re-uploading blocks),
+Ising-type *ZZ* / *XX* / *YY* couplers, and trainable single-qubit rotations
+:math:`U(\\xi)`.  Used by :class:`qignn.quantum_torch.TorchQuantumLayer` /
+:class:`qignn.quantum_torch.TopoAwareQuantumLayer` as the trainable *U(ξ)* in the
+encode--unitary--measure definition of the quantum residual.  All simulation is
+PyTorch statevector math on GPU/CPU.
 """
 
 import torch
