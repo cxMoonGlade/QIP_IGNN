@@ -1,0 +1,17 @@
+# Downloaded datasets (large, regenerated automatically)
+data/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+results/
