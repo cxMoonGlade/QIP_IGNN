@@ -30,13 +30,6 @@ Details of the operator appear in the paper; the implementation of \(\Phi_\Theta
 
 ## Reference commands (MUTAG, fold 0, seed 42)
 
-The following match the paper’s reported configuration; flags not listed use defaults in `model_factory.py` (booleans off unless set). **IN** does not pass `--no_topo` (cycle-based topology features are used). **SD**, **BD**, and the **classical** baseline add `--no_topo` (the sweep that produced the paper’s main tables disabled topology conditioning for those three).
-
-| | IN | SD | BD | Classical |
-|---|:--:|:--:|:--:|:--:|
-| `n_folds` | 8 | 10 | 10 | 8 |
-| Encoder `n_qubits` / `circuit_reps` | 4 / 1 | 4 / 3 | 4 / 3 | 4 / 1 |
-| `no_topo` | off | on | on | on |
 
 **IN**
 
