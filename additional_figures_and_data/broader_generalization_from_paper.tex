@@ -1,0 +1,24 @@
+% Snippet from paper draft (Broader Generalization Diagnostics appendix).
+\section{Broader Generalization Diagnostics}
+\label{app:generalization}
+
+This subsection reports broader training--test generalization diagnostics for the final selected runs. Table \ref{tab:app-gap} shows in addition to the three main comparison datasets used in the body of the paper, we include two extra TU datasets to illustrate that generalization sensitivity is not confined to the main comparative setting.
+
+\begin{table}[t]
+\centering
+\caption{Average selected training accuracy, test accuracy, and train--test gap for broader diagnostic runs.}
+\label{tab:app-gap}
+\begin{tabular*}{0.85\columnwidth}{@{\extracolsep{\fill}}lccc@{}}
+    \toprule
+    \textbf{Dataset} & \textbf{Train Acc.} & \textbf{Test Acc.} & \textbf{Gap} \\
+    \midrule
+    MUTAG & $100.0$ & $88.7$ & $11.3$ \\
+    NCI1 & $93.0$ & $75.1$ & $17.9$ \\
+    PTC\_MR & $73.7$ & $57.2$ & $16.5$ \\
+    PROTEINS & $100.0$ & $76.9$ & $23.1$ \\
+    IMDB-BINARY & $97.4$ & $71.4$ & $26.0$ \\
+    \bottomrule
+\end{tabular*}
+\end{table}
+
+Among the three main comparison datasets, PROTEINS shows the largest train--test gap at $23.1$ points, while IMDB-BINARY exhibits an even larger $26.0$-point gap in the broader diagnostic set. These observations do not overturn the operator-level conclusions of the main text, but they do indicate that regularization and model selection remain open issues beyond the core pathway comparison.

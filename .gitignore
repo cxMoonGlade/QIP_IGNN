@@ -8,6 +8,8 @@
 !/train.py
 !/model_factory.py
 !/qignn
+!/additional_figures_and_data/
+!/additional_figures_and_data/**
 
 # Root dotfiles: experiment queues, locks, workers, ad-hoc dirs. The pattern
 # `/*` above does *not* match names starting with `.`, so these must be listed

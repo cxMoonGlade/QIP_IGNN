@@ -92,4 +92,9 @@ train.py
 model_factory.py
 requirements.txt
 qignn/
+additional_figures_and_data/
 ```
+
+## Additional figures and data
+
+Some conference builds may omit long diagnostics from the main PDF. The folder [`additional_figures_and_data/`](additional_figures_and_data/) archives the **gradient-variance diagnostic figure** (`bp_main_3x2.pdf`) and **LaTeX snippets** matching the full paper draft (`gradient_landscape_diagnostic_from_paper.tex`, `broader_generalization_from_paper.tex`). See that folder’s [`README.md`](additional_figures_and_data/README.md) for details.
