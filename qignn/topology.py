@@ -1,8 +1,10 @@
 r"""
 Graph-side topology descriptors :math:`\tau(A)` for the paper (independent
 injection :math:`Q_{\mathrm{IN}}(H,\tau(A))` and, when used, modulations on the
-encode--unitary--measure map).  Builds a (minimum) cycle basis and per-node / graph
-cycle-count features consumed by :class:`qignn.quantum_torch.TopoAwareQuantumLayer`.
+encode--unitary--measure map).  Builds a **fundamental** cycle basis via
+:func:`networkx.cycle_basis` (Paton's algorithm; spanning-tree + chords), *not*
+:func:`networkx.minimum_cycle_basis`, then derives per-node / graph cycle-count
+features consumed by :class:`qignn.quantum_torch.TopoAwareQuantumLayer`.
 The optional PCB-GNN-style gating in that layer follows the *PCB-GNN* reference
 cited in the paper’s related work.
 """
@@ -16,7 +18,7 @@ from torch_geometric.data import Data, Batch
 
 
 def compute_cycle_basis(edge_index: torch.Tensor, num_nodes: int) -> List[List[int]]:
-    """Compute minimum cycle basis of a graph via NetworkX."""
+    """Fundamental cycle basis via :func:`networkx.cycle_basis` (Paton's algorithm)."""
     G = nx.Graph()
     G.add_nodes_from(range(num_nodes))
     edges = edge_index.cpu().numpy().T
